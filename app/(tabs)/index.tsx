@@ -1,55 +1,113 @@
-import { Image } from "expo-image";
-import { Platform, StyleSheet } from "react-native";
-
-import { HelloWave } from "@/components/hello-wave";
-import ParallaxScrollView from "@/components/parallax-scroll-view";
-import { ThemedText } from "@/components/themed-text";
-import { ThemedView } from "@/components/themed-view";
-import { Link } from "expo-router";
-import { View, Text, Button } from "react-native";
 import * as Speech from "expo-speech";
+import { useEffect, useState } from "react";
+import { Button, StyleSheet, Text, View } from "react-native";
 
+type Signal = "RED" | "YELLOW" | "GREEN";
 
 export default function HomeScreen() {
+  const [signal, setSignal] = useState<Signal>("RED");
+  const [timeLeft, setTimeLeft] = useState<number>(0);
+  const [running, setRunning] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (!running) return;
+
+    let duration = 0;
+    let message = "";
+
+    if (signal === "RED") {
+      duration = 10;
+      message = "Red signal. Please stop.";
+    } else if (signal === "YELLOW") {
+      duration = 3;
+      message = "Yellow signal. Get ready.";
+    } else {
+      duration = 15;
+      message = "Green signal. You may cross now.";
+    }
+
+    Speech.stop();
+    Speech.speak(message);
+
+    setTimeLeft(duration);
+
+    const timer = setInterval(() => {
+      setTimeLeft((prev) => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          changeSignal();
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [signal, running]);
+
+  const changeSignal = () => {
+    if (signal === "RED") setSignal("YELLOW");
+    else if (signal === "YELLOW") setSignal("GREEN");
+    else setSignal("RED");
+  };
+
+  const startAssistance = () => {
+    setRunning(true);
+    setSignal("RED");
+    Speech.speak("Blind pedestrian assistance started");
+  };
+
   return (
-  <View
-    style={{
-      flex: 1,
-      justifyContent: "center",
-      alignItems: "center",
-      padding: 20,
-    }}
-  >
-    <Text style={{ fontSize: 22, marginBottom: 20 }}>
-      Blind Pedestrian Assistant
-    </Text>
+    <View style={styles.container}>
+      <Text style={styles.title}>Blind Pedestrian Assistant</Text>
 
-    <Button
-      title="Start Assistance"
-      onPress={() => {
-        Speech.speak("Blind pedestrian assistance started");
-      }}
-    />
-  </View>
-);
+      <View
+        style={[
+          styles.signal,
+          signal === "RED"
+            ? styles.red
+            : signal === "YELLOW"
+            ? styles.yellow
+            : styles.green,
+        ]}
+      />
 
+      {running && (
+        <Text style={styles.timer}>
+          {signal} | {timeLeft}s
+        </Text>
+      )}
+
+      {!running && (
+        <Button title="Start Assistance" onPress={startAssistance} />
+      )}
+    </View>
+  );
 }
 
 const styles = StyleSheet.create({
-  titleContainer: {
-    flexDirection: "row",
+  container: {
+    flex: 1,
+    justifyContent: "center",
     alignItems: "center",
-    gap: 8,
+    padding: 20,
   },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
+  title: {
+    fontSize: 22,
+    marginBottom: 20,
+    fontWeight: "bold",
   },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: "absolute",
+  signal: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    marginBottom: 20,
+  },
+  red: { backgroundColor: "red" },
+  yellow: { backgroundColor: "yellow" },
+  green: { backgroundColor: "green" },
+  timer: {
+    fontSize: 18,
+    marginBottom: 20,
   },
 });
